@@ -102,6 +102,15 @@ impl ThemeChoice {
             ThemeChoice::Dark => Some(Theme::Dark),
         }
     }
+
+    #[cfg(target_os = "windows")]
+    fn wry_theme(self) -> wry::Theme {
+        match self {
+            ThemeChoice::System => wry::Theme::Auto,
+            ThemeChoice::Light => wry::Theme::Light,
+            ThemeChoice::Dark => wry::Theme::Dark,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
@@ -161,6 +170,9 @@ struct Strings {
     btn_open: &'static str,
     btn_search: &'static str,
     btn_print: &'static str,
+    btn_theme_dark: &'static str,
+    btn_theme_light: &'static str,
+    btn_theme_system: &'static str,
     btn_update: &'static str,
     btn_zoom: &'static str,
     btn_zoom_out: &'static str,
@@ -190,6 +202,9 @@ impl Strings {
                 btn_open: "Open File (Cmd/Ctrl+O)",
                 btn_search: "搜索 (Cmd/Ctrl+F)",
                 btn_print: "打印 (Cmd/Ctrl+P)",
+                btn_theme_dark: "暗色主题",
+                btn_theme_light: "亮色主题",
+                btn_theme_system: "跟随系统",
                 btn_update: "Update",
                 btn_zoom: "正文缩放",
                 btn_zoom_out: "缩小正文 (Cmd/Ctrl+-)",
@@ -215,6 +230,9 @@ impl Strings {
                 btn_open: "Open File (Cmd/Ctrl+O)",
                 btn_search: "Find (Cmd/Ctrl+F)",
                 btn_print: "Print (Cmd/Ctrl+P)",
+                btn_theme_dark: "Switch to dark theme",
+                btn_theme_light: "Switch to light theme",
+                btn_theme_system: "Follow system",
                 btn_update: "Update",
                 btn_zoom: "Content zoom",
                 btn_zoom_out: "Zoom out (Cmd/Ctrl+-)",
@@ -1287,6 +1305,21 @@ body.empty .toolbar.has-update button:not(.update-btn) {{ display: none !importa
 	.toolbar .zoom-popover .zoom-reset {{
 	  width: 52px; font-size: 11px; font-variant-numeric: tabular-nums;
 	}}
+	.theme-control {{ position: relative; }}
+	.theme-menu {{
+	  position: absolute; top: 40px; right: 0; z-index: 1;
+	  display: none; padding: 4px;
+	  border: 1px solid rgba(0,0,0,.1); border-radius: 8px;
+	  background: rgba(255,255,255,.96); box-shadow: 0 6px 20px rgba(0,0,0,.12);
+	  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+	}}
+	.theme-menu:not([hidden]) {{ display: block; }}
+	.toolbar .theme-menu button {{
+	  width: auto; height: 30px; padding: 0 12px; border: 0; background: transparent;
+	  font: inherit; font-size: 13px; color: #333; cursor: pointer;
+	  border-radius: 6px; white-space: nowrap;
+	}}
+	.toolbar .theme-menu button:hover {{ background: rgba(0,0,0,.06); }}
 	.toolbar .update-btn {{
 	  width: auto; min-width: 76px; padding: 0 11px; grid-auto-flow: column; gap: 5px;
 	  font-size: 13px; font-weight: 600; color: #0969da;
@@ -1345,6 +1378,9 @@ body.empty .toolbar.has-update button:not(.update-btn) {{ display: none !importa
 	  .toolbar button:hover {{ color: #fff; background: rgba(55,55,55,1); }}
 	  .zoom-popover {{ background: rgba(34,34,34,.96); border-color: rgba(255,255,255,.12); }}
 	  .toolbar .zoom-popover button:hover {{ background: rgba(255,255,255,.1); }}
+	  .theme-menu {{ background: rgba(34,34,34,.96); border-color: rgba(255,255,255,.12); }}
+	  .toolbar .theme-menu button {{ color: #ddd; }}
+	  .toolbar .theme-menu button:hover {{ background: rgba(255,255,255,.1); }}
 	  .toolbar .update-btn {{ color: #6cb6ff; }}
 		  .empty-open {{ background: #242424; border-color: #444; color: #ddd; }}
 		  .empty-open:hover {{ background: #2d2d2d; color: #fff; }}
@@ -1400,6 +1436,12 @@ body.editing #btn-print {{ display: none; }}
 	  <button id="btn-search" title="{btn_search}" aria-label="{btn_search}"></button>
 	  <button id="btn-toggle" title="{btn_edit}" aria-label="{btn_edit}"></button>
 	  <button id="btn-print" title="{btn_print}" aria-label="{btn_print}"></button>
+	  <div class="theme-control" id="theme-control">
+	    <button id="btn-theme" title="{btn_theme_dark}" aria-label="{btn_theme_dark}"></button>
+	    <div class="theme-menu" id="theme-menu" hidden>
+	      <button id="theme-system" type="button">{btn_theme_system}</button>
+	    </div>
+	  </div>
 	  <div class="zoom-control" id="zoom-control">
 	    <button id="btn-zoom" title="{btn_zoom}" aria-label="{btn_zoom}"></button>
 	    <div class="zoom-popover">
@@ -1429,6 +1471,8 @@ body.editing #btn-print {{ display: none; }}
 	  var ICON_SEARCH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
 	  var ICON_PRINT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 	  var ICON_ZOOM = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>';
+	  var ICON_SUN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>';
+	  var ICON_MOON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 	  var ICON_UP = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
 	  var ICON_DOWN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 	  var ICON_CLOSE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -1444,6 +1488,9 @@ body.editing #btn-print {{ display: none; }}
 	  var btnZoomIn = document.getElementById('btn-zoom-in');
 	  var zoomControl = document.getElementById('zoom-control');
 	  var btnUpdate = document.getElementById('btn-update');
+	  var btnTheme = document.getElementById('btn-theme');
+	  var themeMenu = document.getElementById('theme-menu');
+	  var themeSystem = document.getElementById('theme-system');
 	  var findInput = document.getElementById('find-input');
 	  var findState = document.getElementById('find-state');
 	  var findPrev = document.getElementById('find-prev');
@@ -1820,6 +1867,31 @@ body.editing #btn-print {{ display: none; }}
     // WebView::print() calls the right native API on each platform.
     setTimeout(function(){{ window.ipc.postMessage('print'); }}, 0);
   }});
+  var mqDark = window.matchMedia('(prefers-color-scheme: dark)');
+  function renderThemeIcon() {{
+    var dark = mqDark.matches;
+    btnTheme.innerHTML = dark ? ICON_MOON : ICON_SUN;
+    var tip = dark ? '{btn_theme_light}' : '{btn_theme_dark}';
+    btnTheme.title = tip;
+    btnTheme.setAttribute('aria-label', tip);
+  }}
+  renderThemeIcon();
+  mqDark.addEventListener('change', renderThemeIcon);
+  btnTheme.addEventListener('click', function() {{
+    window.ipc.postMessage(mqDark.matches ? 'theme:light' : 'theme:dark');
+  }});
+  btnTheme.addEventListener('contextmenu', function(e) {{
+    e.preventDefault();
+    e.stopPropagation();
+    themeMenu.hidden = false;
+  }});
+  themeSystem.addEventListener('click', function() {{
+    themeMenu.hidden = true;
+    window.ipc.postMessage('theme:system');
+  }});
+  document.addEventListener('click', function(e) {{
+    if (!themeMenu.hidden && !themeMenu.contains(e.target)) themeMenu.hidden = true;
+  }});
 	  ta.addEventListener('input', function() {{ setDirty(true); scheduleAutosave(); autoResize(); updateDocumentStats(ta.value); }});
   window.addEventListener('resize', function() {{ if (inEdit()) autoResize(); }});
   document.addEventListener('click', function(e) {{
@@ -2054,6 +2126,9 @@ window.__mdPreviewInstallUpdateCheck({{
         btn_edit = s.btn_edit,
         btn_preview = s.btn_preview,
         btn_print = s.btn_print,
+        btn_theme_dark = s.btn_theme_dark,
+        btn_theme_system = s.btn_theme_system,
+        btn_theme_light = s.btn_theme_light,
         btn_update = s.btn_update,
         btn_zoom = s.btn_zoom,
         btn_zoom_out = s.btn_zoom_out,
@@ -2546,6 +2621,47 @@ mod tests {
     }
 
     #[test]
+    fn page_exposes_theme_toggle_markup_and_strings() {
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &Strings::for_lang(Lang::En),
+            false,
+            true,
+        );
+        let toolbar = page.find(r#"<div class="toolbar">"#).unwrap();
+        let theme_btn = page.find(r#"id="btn-theme""#).unwrap();
+        let findbar = page.find(r#"class="findbar""#).unwrap();
+        assert!(
+            toolbar < theme_btn && theme_btn < findbar,
+            "theme button must live inside the toolbar, before the findbar"
+        );
+        assert!(page.contains(r#"id="theme-menu""#));
+        assert!(page.contains(r#"id="theme-system""#));
+        assert!(page.contains("Switch to dark theme"));
+        assert!(page.contains("Follow system"));
+        assert!(page.contains(".theme-control"));
+        assert!(page.contains(".theme-menu:not([hidden])"));
+        assert!(page.contains(".toolbar .theme-menu button"));
+        assert!(page.contains(".theme-menu { background: rgba(34,34,34,.96);"));
+        assert!(!page.contains("body.editing #btn-theme"));
+
+        let zh_page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &Strings::for_lang(Lang::Zh),
+            false,
+            true,
+        );
+        assert!(zh_page.contains("暗色主题"));
+        assert!(zh_page.contains("跟随系统"));
+    }
+
+    #[test]
     fn page_blocks_native_preview_reload_paths() {
         let strings = Strings::for_lang(Lang::En);
         let page = build_page(
@@ -2890,6 +3006,43 @@ mod tests {
         assert_eq!(fs::read_to_string(created).unwrap(), "");
         let _ = fs::remove_dir_all(dir);
     }
+
+    #[test]
+    fn page_script_wires_theme_toggle() {
+        let page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &Strings::for_lang(Lang::En),
+            false,
+            true,
+        );
+        assert!(page.contains("var ICON_SUN ="));
+        assert!(page.contains("var ICON_MOON ="));
+        assert!(page.contains(
+            "var mqDark = window.matchMedia('(prefers-color-scheme: dark)');"
+        ));
+        assert!(page.contains(
+            "window.ipc.postMessage(mqDark.matches ? 'theme:light' : 'theme:dark');"
+        ));
+        assert!(page.contains("window.ipc.postMessage('theme:system');"));
+        assert!(page.contains("btnTheme.addEventListener('contextmenu'"));
+        assert!(page.contains("mqDark.addEventListener('change', renderThemeIcon)"));
+        assert!(page.contains("renderThemeIcon();"));
+        assert!(page.contains("Switch to light theme"));
+
+        let zh_page = build_page(
+            &md_to_html("# Hello"),
+            "# Hello",
+            None,
+            EnhanceFlags::default(),
+            &Strings::for_lang(Lang::Zh),
+            false,
+            true,
+        );
+        assert!(zh_page.contains("亮色主题"));
+    }
 }
 
 /// Decode embedded icon.ico to an RGBA tao Icon for the window chrome.
@@ -3002,6 +3155,12 @@ thread_local! {
 }
 
 #[cfg(target_os = "macos")]
+thread_local! {
+    static MACOS_THEME_MENU: std::cell::RefCell<Option<objc2::rc::Retained<objc2_app_kit::NSMenu>>> =
+        std::cell::RefCell::new(None);
+}
+
+#[cfg(target_os = "macos")]
 fn send_macos_menu_event(event: UserEvent) {
     MACOS_MENU_PROXY.with(|cell| {
         if let Some(proxy) = cell.borrow().as_ref() {
@@ -3011,13 +3170,41 @@ fn send_macos_menu_event(event: UserEvent) {
 }
 
 #[cfg(target_os = "macos")]
+fn sync_macos_theme_menu(choice: ThemeChoice) {
+    use objc2_app_kit::{NSControlStateValueOff, NSControlStateValueOn};
+    let selected = match choice {
+        ThemeChoice::System => 101,
+        ThemeChoice::Light => 102,
+        ThemeChoice::Dark => 103,
+    };
+    MACOS_THEME_MENU.with(|cell| {
+        let guard = cell.borrow();
+        let Some(menu) = guard.as_ref() else {
+            return;
+        };
+        for index in 0..menu.numberOfItems() {
+            if let Some(item) = menu.itemAtIndex(index) {
+                let tag = item.tag();
+                if (101..=103).contains(&tag) {
+                    item.setState(if tag == selected {
+                        NSControlStateValueOn
+                    } else {
+                        NSControlStateValueOff
+                    });
+                }
+            }
+        }
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+fn sync_macos_theme_menu(_choice: ThemeChoice) {}
+
+#[cfg(target_os = "macos")]
 fn macos_menu_controller_class() -> &'static objc2::runtime::AnyClass {
     use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, NSObject, Sel};
     use objc2::{sel, ClassType, MainThreadOnly};
-    use objc2_app_kit::{
-        NSAlert, NSAlertStyle, NSButton, NSControlStateValueOff, NSControlStateValueOn, NSImage,
-        NSMenuItem, NSView,
-    };
+    use objc2_app_kit::{NSAlert, NSAlertStyle, NSButton, NSImage, NSMenuItem, NSView};
     use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
     use std::sync::Once;
 
@@ -3071,21 +3258,7 @@ fn macos_menu_controller_class() -> &'static objc2::runtime::AnyClass {
             103 => ThemeChoice::Dark,
             _ => ThemeChoice::System,
         };
-        let selected = sender.tag();
-        if let Some(menu) = unsafe { sender.menu() } {
-            for index in 0..menu.numberOfItems() {
-                if let Some(item) = menu.itemAtIndex(index) {
-                    let tag = item.tag();
-                    if (101..=103).contains(&tag) {
-                        item.setState(if tag == selected {
-                            NSControlStateValueOn
-                        } else {
-                            NSControlStateValueOff
-                        });
-                    }
-                }
-            }
-        }
+        sync_macos_theme_menu(choice);
         send_macos_menu_event(UserEvent::SetTheme(choice));
     }
 
@@ -3474,6 +3647,9 @@ fn install_macos_menu(proxy: EventLoopProxy<UserEvent>, theme: ThemeChoice) {
     let theme_menu_item = item("Theme", None, "", NSEventModifierFlags::empty(), mtm);
     theme_menu_item.setSubmenu(Some(&theme_menu));
     view_menu.addItem(&theme_menu_item);
+    MACOS_THEME_MENU.with(|cell| {
+        *cell.borrow_mut() = Some(theme_menu);
+    });
     let view_menu_item = item("View", None, "", NSEventModifierFlags::empty(), mtm);
     view_menu_item.setSubmenu(Some(&view_menu));
     main_menu.addItem(&view_menu_item);
@@ -4437,6 +4613,16 @@ fn main() {
                 let _ = proxy_for_ipc.send_event(UserEvent::NewFile);
             } else if body == "open" {
                 let _ = proxy_for_ipc.send_event(UserEvent::OpenFile);
+            } else if let Some(value) = body.strip_prefix("theme:") {
+                let choice = match value {
+                    "system" => Some(ThemeChoice::System),
+                    "light" => Some(ThemeChoice::Light),
+                    "dark" => Some(ThemeChoice::Dark),
+                    _ => None,
+                };
+                if let Some(choice) = choice {
+                    let _ = proxy_for_ipc.send_event(UserEvent::SetTheme(choice));
+                }
             } else if let Some(index) = body.strip_prefix("open-recent:") {
                 if let Ok(index) = index.parse::<usize>() {
                     let path = recent_files_for_ipc.lock().unwrap().get(index).cloned();
@@ -4625,6 +4811,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     let builder = {
         use wry::WebViewBuilderExtWindows;
+        let builder = builder.with_theme(initial_theme.wry_theme());
         match std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS") {
             Ok(arguments) => builder.with_additional_browser_args(&arguments),
             Err(_) => builder,
@@ -5026,6 +5213,12 @@ fn main() {
             TaoEvent::UserEvent(UserEvent::SetTheme(choice)) => {
                 save_theme_choice(choice);
                 window.set_theme(choice.tao_theme());
+                #[cfg(target_os = "windows")]
+                {
+                    use wry::WebViewExtWindows;
+                    let _ = webview.set_theme(choice.wry_theme());
+                }
+                sync_macos_theme_menu(choice);
             }
             TaoEvent::UserEvent(UserEvent::OpenUrl(url)) => {
                 let _ = open::that(url);

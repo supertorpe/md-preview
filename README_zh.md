@@ -110,7 +110,7 @@ iPhone 和 iPad 上，Local Markdown Preview 可以从“文件”和 iOS 分享
 | 图表 | Mermaid fenced code block 只在文档实际使用时本地渲染。 |
 | GitHub Alerts | `[!NOTE]`、`[!TIP]`、`[!IMPORTANT]`、`[!WARNING]`、`[!CAUTION]` blockquote 会渲染成提示块。 |
 | 高亮标记 | `==高亮==` 会渲染成 marked text，适合笔记和 AI 生成文档。 |
-| 暗色模式 | 自动跟随 macOS、Windows、Linux 的系统主题。 |
+| 暗色模式 | 工具栏一键切换暗色亮色，或自动跟随 macOS、Windows、Linux 的系统主题。 |
 | GFM 支持 | 表格、任务列表、删除线、heading attributes、标题锚点。 |
 | 外链跳转 | `http`、`https`、`mailto` 链接交给系统浏览器或邮件客户端。 |
 | 窗口恢复 | 下次启动恢复上次位置和大小；断开显示器后自动回到可见屏幕。 |

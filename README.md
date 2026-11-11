@@ -110,7 +110,7 @@ On iPhone and iPad, Local Markdown Preview opens Markdown and plain-text files f
 | Diagrams | Mermaid fenced blocks render locally when the document actually uses them. |
 | GitHub Alerts | `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, and `[!CAUTION]` blockquotes render as alert callouts. |
 | Highlights | `==highlight==` renders as marked text for notes and AI-generated docs. |
-| Dark mode | Follows the system color scheme across macOS, Windows, and Linux. |
+| Dark mode | Toggle dark and light from the toolbar, or follow the system color scheme on macOS, Windows, and Linux. |
 | GitHub-flavored Markdown | Tables, task lists, strikethrough, heading attributes, and anchors. |
 | External links | `http`, `https`, and `mailto` links open in the system browser or mail app. |
 | Window restore | Last size and position are restored when still visible on a connected monitor. |

@@ -1,5 +1,13 @@
 # Changelog
 
+# 1.4.3
+
+- Added a toolbar theme-toggle button on desktop: left-click switches between dark and light; right-click opens a small menu with a Follow-system option. The button icon reflects the current scheme and updates when the system theme changes.
+- Applied the persisted theme choice to Windows WebView2 content at startup and after each switch, using `WebViewExtWindows::set_theme` so dark/light rendering stays in sync with the chrome.
+- Refactored the macOS menu theme-selection callback into `sync_macos_theme_menu`, called from both the native menu click path and the event-loop `SetTheme` handler, keeping menu checkmarks consistent after every state change.
+- Verified dark-mode switching across the desktop reading-tools, search, and new dedicated theme regression checks, and updated README/README_zh/docs to mention the toolbar toggle in both languages.
+- Skipped mobile release-readiness when `gradle` is not installed instead of failing the verification gate.
+
 ## 1.4.2
 
 - Fixed Windows crashes when cold-starting with a large Markdown document or restoring one from the previous session. The initial WebView page is now independent of document size; content loads after the page is ready, avoiding WebView2’s 2 MiB HTML limit.

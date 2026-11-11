@@ -45,6 +45,10 @@ await page.setContent(`<!doctype html>
       <button id="btn-search"></button>
       <button id="btn-toggle"></button>
       <button id="btn-print"></button>
+      <div id="theme-control">
+        <button id="btn-theme"></button>
+        <div id="theme-menu" hidden><button id="theme-system"></button></div>
+      </div>
       <div id="zoom-control">
         <button id="btn-zoom"></button>
         <button id="btn-zoom-out"></button>

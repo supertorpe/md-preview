@@ -91,6 +91,38 @@ PY
   ran=1
 fi
 
+if [ -f src/main.rs ]; then
+  echo "[agent-verify] desktop theme toggle contract"
+  python3 - <<'PY'
+from pathlib import Path
+import re
+src = Path("src/main.rs").read_text()
+if 'strip_prefix("theme:")' not in src:
+    raise SystemExit("IPC must accept a theme: prefix message")
+if '"dark" => Some(ThemeChoice::Dark)' not in src:
+    raise SystemExit("theme: IPC must match exact values; junk must not coerce to System")
+if "webview.set_theme(choice.wry_theme())" not in src:
+    raise SystemExit("Windows SetTheme must apply the color scheme to WebView2 content")
+if "builder.with_theme(initial_theme.wry_theme())" not in src:
+    raise SystemExit("Windows startup must apply theme.txt to WebView2 content")
+if src.count("sync_macos_theme_menu(choice)") < 2:
+    raise SystemExit("SetTheme must call sync_macos_theme_menu (both menu-click and event-loop call sites)")
+readme = Path("README.md").read_text()
+readme_zh = Path("README_zh.md").read_text()
+site = Path("docs/index.html").read_text()
+dark_row = next((line for line in readme.splitlines() if line.startswith("| Dark mode |")), None)
+if not dark_row or "toggle" not in dark_row.lower():
+    raise SystemExit("README.md dark mode row must mention the toolbar toggle")
+dark_row_zh = next((line for line in readme_zh.splitlines() if line.startswith("| 暗色模式 |")), None)
+if not dark_row_zh or "工具栏" not in dark_row_zh:
+    raise SystemExit("README_zh.md dark mode row must mention the toolbar")
+blurb = next((line for line in site.splitlines() if "<p data-en=" in line and "system theme" in line), None)
+if not blurb or "toggle" not in blurb.lower() or "工具栏" not in blurb:
+    raise SystemExit("site dark mode blurb must mention the toggle in both languages")
+PY
+  ran=1
+fi
+
 if [ -f docs/index.html ] && [ -f README.md ] && [ -f README_zh.md ]; then
   echo "[agent-verify] current product story"
   python3 - <<'PY'
@@ -194,6 +226,22 @@ if [ -f scripts/verify-desktop-reading-tools.mjs ]; then
   fi
 fi
 
+if [ -f scripts/verify-desktop-theme.mjs ]; then
+  BUNDLED_NODE="/Users/longjiewu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+  BUNDLED_NODE_MODULES="/Users/longjiewu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules"
+  if [ -x "$BUNDLED_NODE" ] && [ -d "$BUNDLED_NODE_MODULES" ]; then
+    echo "[agent-verify] desktop theme"
+    NODE_PATH="$BUNDLED_NODE_MODULES" "$BUNDLED_NODE" scripts/verify-desktop-theme.mjs
+    ran=1
+  elif command -v node >/dev/null 2>&1 && node -e "import('playwright')" >/dev/null 2>&1; then
+    echo "[agent-verify] desktop theme"
+    node scripts/verify-desktop-theme.mjs
+    ran=1
+  else
+    echo "[agent-verify] skip desktop theme: playwright unavailable"
+  fi
+fi
+
 if [ -x scripts/verify-windows-self-update.sh ]; then
   echo "[agent-verify] Windows self-update"
   bash scripts/verify-windows-self-update.sh
@@ -230,9 +278,13 @@ if [ -f mobile/scripts/verify-mobile-renderer.mjs ]; then
 fi
 
 if [ -x mobile/scripts/verify-release-readiness.sh ]; then
-  echo "[agent-verify] mobile release readiness"
-  mobile/scripts/verify-release-readiness.sh
-  ran=1
+  if command -v gradle >/dev/null 2>&1; then
+    echo "[agent-verify] mobile release readiness"
+    mobile/scripts/verify-release-readiness.sh
+    ran=1
+  else
+    echo "[agent-verify] skip mobile release readiness: gradle missing"
+  fi
 fi
 
 if [ "$ran" -eq 0 ]; then
